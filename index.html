@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>토끼 뽀모도로</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 귀엽고 다정하게, 한눈에 남은 시간
+   IDEA: 토끼의 하루 — 집중엔 달리고, 휴식엔 해변에서 늘어진다
+   PICTURE: 둥근 창 속 장면(달리는 토끼 / 선글라스 끼고 코코넛 마시는 토끼), 바깥 링이 진행도
+   COLOUR and TYPE: 집중=당근 주황, 휴식=바다 청록, 랜모도로는 자두색/밤바다 / Jua + Gowun Dodum
+   LAYOUT: 모드 탭, 장면, 큰 시간, 조작 버튼, 시간 선택, 그 아래 할 일 + 설정 */
+:root{color-scheme:light dark;--acc:#ffd23f}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+body[data-phase=focus]{--bg:light-dark(#e2672b,#2b140a);--deep:light-dark(#bf521c,#1c0c05)}
+body[data-phase=break]{--bg:light-dark(#178a9a,#08262c);--deep:light-dark(#0f6f7c,#04181c)}
+body[data-mode=rand][data-phase=focus]{--bg:light-dark(#9a3f86,#260b22);--deep:light-dark(#7f306e,#180616)}
+body[data-mode=rand][data-phase=break]{--bg:light-dark(#2f5d8a,#0f1d2e);--deep:light-dark(#244a70,#09121e)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;min-height:100vh;background:var(--bg);color:#fff;font:16px/1.55 "Gowun Dodum",system-ui,sans-serif;overflow-x:clip;transition:background .6s}
+@media(prefers-color-scheme:dark){body{color:#ffeee8}}
+:root[data-theme=dark] body{color:#ffeee8}:root[data-theme=light] body{color:#fff}
+h1,h2,.time,.tab,.btn,.count{font-family:Jua,"Gowun Dodum",sans-serif;font-weight:400}
+.wrap{max-width:1040px;margin:0 auto;padding:clamp(18px,3vw,36px) max(5vw,16px)}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:32px;line-height:1.05}
+.count{font-size:17px;background:rgba(0,0,0,.16);padding:6px 14px;border-radius:999px;white-space:nowrap}
+.tabs{display:flex;gap:6px;justify-content:center;margin:22px auto 6px;background:rgba(0,0,0,.16);padding:6px;border-radius:999px;width:max-content;max-width:100%;flex-wrap:wrap}
+.tab{border:0;background:none;color:inherit;font-size:17px;padding:10px 18px;min-height:44px;border-radius:999px;cursor:pointer}
+.tab[aria-selected=true]{background:#fff;color:var(--deep)}
+.fig{position:relative;width:min(340px,78vw);aspect-ratio:1;margin:10px auto 0}
+.fig svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.ring{transition:stroke-dashoffset .3s linear}
+.face{text-align:center;margin-top:10px}
+.sc{display:none}body[data-phase=focus] .run,body[data-phase=break] .beach{display:inline}
+@keyframes bob{50%{transform:translateY(-9px)}}@keyframes legA{50%{transform:rotate(-38deg)}}@keyframes legB{50%{transform:rotate(34deg)}}
+@keyframes slide{to{transform:translateX(-60px)}}@keyframes wave{50%{transform:translateX(-10px)}}@keyframes sip{50%{transform:rotate(-6deg)}}
+.go .bun{animation:bob .36s ease-in-out infinite}.go .la{animation:legA .36s ease-in-out infinite}.go .lb{animation:legB .36s ease-in-out infinite}
+.go .dash{animation:slide .5s linear infinite}.go .wv{animation:wave 3s ease-in-out infinite}.go .cup{animation:sip 2.4s ease-in-out infinite}
+.la,.lb,.cup{transform-box:fill-box;transform-origin:50% 10%}.cup{transform-origin:80% 80%}
+.time{font-size:clamp(60px,15vw,96px);line-height:1;letter-spacing:.01em;text-shadow:0 3px 0 rgba(0,0,0,.18);font-variant-numeric:tabular-nums}
+.sub{font-size:15px;opacity:.92;margin-top:6px;max-width:16em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-inline:auto}
+.ctl{display:flex;justify-content:center;align-items:center;gap:14px;margin:18px 0 8px}
+.btn{border:0;cursor:pointer;font-size:22px;min-height:56px;padding:0 44px;border-radius:16px;background:#fff;color:var(--deep);box-shadow:0 6px 0 rgba(0,0,0,.22);transition:transform .1s,box-shadow .1s}
+.btn:active,.btn.on{transform:translateY(5px);box-shadow:0 1px 0 rgba(0,0,0,.22)}
+.icon{width:48px;height:48px;border-radius:50%;border:2px solid rgba(255,255,255,.5);background:none;color:inherit;cursor:pointer;display:grid;place-items:center}
+.icon:hover{background:rgba(255,255,255,.12)}
+.dots{display:flex;justify-content:center;gap:8px;margin:10px 0 0;font-size:14px;opacity:.95;align-items:center;flex-wrap:wrap}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid #fff}.dot.f{background:#fff}
+.chips{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin:14px auto 0;max-width:640px}
+.chips b{font-weight:400;font-size:15px;margin-right:4px;width:100%;text-align:center}
+.chip{font:16px Jua,sans-serif;border:2px solid rgba(255,255,255,.55);background:none;color:inherit;min-height:44px;min-width:52px;padding:0 10px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.chip[aria-pressed=true]{background:#fff;color:var(--deep);border-color:#fff}
+.chip:disabled{opacity:.45;cursor:not-allowed}
+.info{text-align:center;font-size:15px;margin:14px 0 0;opacity:.95}
+.hint{text-align:center;font-size:13px;opacity:.8;margin:6px 0 0}
+.lower{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;margin-top:30px}
+.panel{background:rgba(0,0,0,.16);border-radius:20px;padding:20px}
+h2{margin:0 0 12px;font-size:22px;line-height:1.1}
+form.add{display:flex;gap:8px;flex-wrap:wrap}
+input{font:16px "Gowun Dodum",sans-serif;border:0;border-radius:12px;padding:10px 12px;min-height:44px;background:rgba(255,255,255,.92);color:#2a1410}
+form.add input[type=text]{flex:1 1 180px}form.add input[type=number]{width:72px}
+.add button,.mini{font:17px Jua,sans-serif;border:0;border-radius:12px;min-height:44px;padding:0 16px;background:var(--acc);color:#3a2a00;cursor:pointer}
+ul{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
+li{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);border-radius:12px;padding:6px 8px 6px 12px;border:2px solid transparent;cursor:pointer}
+li.act{border-color:var(--acc);background:rgba(255,255,255,.18)}
+li.done .t{text-decoration:line-through;opacity:.6}
+li .t{flex:1;overflow-wrap:anywhere}
+li .n{font-size:14px;white-space:nowrap;opacity:.9}
+li input[type=checkbox]{width:22px;height:22px;min-height:0;accent-color:var(--acc);cursor:pointer}
+.del{background:none;border:0;color:inherit;opacity:.7;width:36px;height:36px;font-size:20px;cursor:pointer;border-radius:8px}.del:hover{opacity:1;background:rgba(0,0,0,.15)}
+.empty{opacity:.8;font-size:15px;margin:14px 0 0}
+.set{display:grid;gap:10px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.row input[type=number]{width:84px;text-align:right}
+.row input[type=checkbox]{width:22px;height:22px;accent-color:var(--acc)}
+.foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.mini.ghost{background:rgba(255,255,255,.16);color:inherit}
+:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+@media(max-width:760px){.lower{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.btn{padding:0 32px}.tab{padding:10px 13px;font-size:16px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body data-mode="pomo" data-phase="focus">
+<div class="wrap">
+  <header>
+    <h1>토끼 뽀모도로</h1>
+    <div class="count" id="today">오늘 0개 완료</div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-m="pomo">뽀모도로</button>
+    <button class="tab" role="tab" data-m="rev">역모도로</button>
+    <button class="tab" role="tab" data-m="rand">랜모도로</button>
+  </div>
+
+  <div class="fig">
+    <svg viewBox="0 0 300 300" aria-hidden="true">
+      <defs>
+        <clipPath id="win"><circle cx="150" cy="150" r="132"/></clipPath>
+        <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe6ff"/><stop offset="1" stop-color="#eaf7ff"/></linearGradient>
+        <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb46b"/><stop offset="1" stop-color="#ffe2a8"/></linearGradient>
+        <g id="ear"><ellipse rx="10" ry="32" fill="#fbf8f4" stroke="#3b2c2c" stroke-width="3"/><ellipse rx="4.5" ry="22" fill="#f6b3c0"/></g>
+      </defs>
+      <circle cx="150" cy="150" r="142" fill="rgba(0,0,0,.18)"/>
+      <g clip-path="url(#win)">
+        <g class="sc run">
+          <rect width="300" height="300" fill="url(#sky1)"/>
+          <circle cx="232" cy="78" r="20" fill="#fff3b0"/>
+          <ellipse cx="80" cy="96" rx="34" ry="11" fill="#fff"/><ellipse cx="200" cy="120" rx="24" ry="8" fill="#fff" opacity=".8"/>
+          <path d="M0 238q75-22 150 0t150 0V300H0z" fill="#6cc46f"/>
+          <rect y="250" width="300" height="50" fill="#57ad5b"/>
+          <g class="dash" stroke="#8ed68f" stroke-width="5" stroke-linecap="round">
+            <path d="M20 262h24M90 274h20M150 260h26M210 272h22M270 262h24M330 274h20"/>
+          </g>
+          <g stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".9"><path d="M30 150h32M18 172h38M34 194h26"/></g>
+          <ellipse cx="150" cy="246" rx="62" ry="7" fill="rgba(0,0,0,.15)"/>
+          <g class="bun">
+            <g class="lb"><ellipse cx="104" cy="214" rx="11" ry="24" fill="#fbf8f4" stroke="#3b2c2c" stroke-width="3" transform="rotate(50 104 214)"/></g>
+            <circle cx="88" cy="176" r="12" fill="#fff" stroke="#3b2c2c" stroke-width="3"/>
+            <ellipse cx="140" cy="184" rx="52" ry="33" fill="#fbf8f4" stroke="#3b2c2c" stroke-width="3"/>
+            <g class="la"><ellipse cx="180" cy="212" rx="8" ry="20" fill="#fbf8f4" stroke="#3b2c2c" stroke-width="3" transform="rotate(-40 180 212)"/></g>
+            <use href="#ear" transform="translate(170 116) rotate(-62)"/>
+            <use href="#ear" transform="translate(182 110) rotate(-48)"/>
+            <circle cx="196" cy="154" r="28" fill="#fbf8f4" stroke="#3b2c2c" stroke-width="3"/>
+            <path d="M200 146q5-5 10 0" stroke="#3b2c2c" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <ellipse cx="209" cy="163" rx="6" ry="4" fill="#f6b3c0" opacity=".8"/>
+            <circle cx="222" cy="155" r="3.5" fill="#f08aa0"/>
+            <path d="M213 168q5 4 10 0" stroke="#3b2c2c" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M228 120q6 9 0 13q-6-4 0-13z" fill="#7cc8ff" stroke="#3a8ed0" stroke-width="1.5"/>
+          </g>
+        </g>
+        <g class="sc beach">
+          <rect width="300" height="300" fill="url(#sky2)"/>
+          <circle cx="92" cy="92" r="30" fill="#fff2a6"/>
+          <rect y="150" width="300" height="50" fill="#2aa6b8"/>
+          <path class="wv" d="M-20 172q15-7 30 0t30 0 30 0 30 0 30 0 30 0 30 0 30 0 30 0 30 0 30 0 30 0" stroke="#bff0f4" stroke-width="4" fill="none"/>
+          <path d="M0 196q150-18 300 0V300H0z" fill="#f6d593"/>
+          <path d="M232 250L246 112" stroke="#8a5a32" stroke-width="5"/>
+          <path d="M184 122q62-58 124-6z" fill="#ff6f61"/><path d="M215 112q31-50 62-2" fill="#fff" opacity=".85"/>
+          <g transform="rotate(-4 150 228)">
+            <rect x="52" y="214" width="196" height="34" rx="6" fill="#4fb7e8"/>
+            <path d="M84 214v34M116 214v34M148 214v34M180 214v34M212 214v34" stroke="#fff" stroke-width="8"/>
+          </g>
+          <use href="#ear" transform="translate(58 198) rotate(-78)"/>
+          <use href="#ear" transform="translate(64 214) rotate(-100)"/>
+          <ellipse cx="160" cy="214" rx="58" ry="22" fill="#fbf8f4" stroke="#3b2c2c" stroke-width="3"/>
+          <ellipse cx="222" cy="206" rx="9" ry="14" fill="#fbf8f4" stroke="#3b2c2c" stroke-width="3" transform="rotate(-30 222 206)"/>
+          <ellipse cx="232" cy="218" rx="9" ry="14" fill="#fbf8f4" stroke="#3b2c2c" stroke-width="3" transform="rotate(-50 232 218)"/>
+          <circle cx="100" cy="200" r="28" fill="#fbf8f4" stroke="#3b2c2c" stroke-width="3"/>
+          <g fill="#1d1d24"><rect x="84" y="186" width="17" height="12" rx="5"/><rect x="104" y="183" width="17" height="12" rx="5"/></g>
+          <path d="M101 190l3-1" stroke="#1d1d24" stroke-width="3"/>
+          <path d="M88 189l5-1" stroke="#fff" stroke-width="2" opacity=".7"/>
+          <ellipse cx="88" cy="208" rx="6" ry="4" fill="#f6b3c0" opacity=".8"/>
+          <path d="M100 214q7 6 14-1" stroke="#3b2c2c" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <g class="cup">
+            <path d="M118 208L146 178" stroke="#ff5fa2" stroke-width="3.5" stroke-linecap="round"/>
+            <circle cx="152" cy="190" r="17" fill="#7a4b2a" stroke="#3b2c2c" stroke-width="3"/>
+            <ellipse cx="148" cy="181" rx="9" ry="5" fill="#fff6e6"/>
+                        <ellipse cx="166" cy="200" rx="9" ry="13" fill="#fbf8f4" stroke="#3b2c2c" stroke-width="3" transform="rotate(30 166 200)"/>
+          </g>
+        </g>
+      </g>
+      <circle cx="150" cy="150" r="142" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="10"/>
+      <circle id="ring" class="ring" cx="150" cy="150" r="142" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" transform="rotate(-90 150 150)"/>
+    </svg>
+  </div>
+  <div class="face">
+      <div class="time" id="time" aria-live="off">25:00</div>
+      <div class="sub" id="sub">집중할 시간이에요</div>
+    </div>
+  </div>
+
+  <div class="ctl">
+    <button class="icon" id="reset" title="처음부터" aria-label="처음부터"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+    <button class="btn" id="go">시작</button>
+    <button class="icon" id="skip" title="다음으로 건너뛰기" aria-label="다음으로 건너뛰기"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l10 7-10 7z"/><path d="M19 5v14"/></svg></button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <p class="info" id="info"></p>
+  <p class="hint">스페이스바로 시작/일시정지 · 시간은 타이머가 멈춰 있을 때 바꿀 수 있어요</p>
+
+  <div class="lower">
+    <section class="panel">
+      <h2>할 일</h2>
+      <form class="add" id="add">
+        <input type="text" id="tt" placeholder="무엇에 집중할까요?" maxlength="80" aria-label="할 일">
+        <input type="number" id="te" min="1" max="20" value="1" aria-label="예상 뽀모도로 수" title="예상 뽀모도로 수">
+        <button>추가</button>
+      </form>
+      <ul id="list"></ul>
+      <p class="empty" id="empty">할 일을 추가하고 눌러서 선택하면, 집중 시간이 끝날 때마다 그 일에 당근이 하나씩 쌓여요.</p>
+    </section>
+    <section class="panel">
+      <h2>설정</h2>
+      <div class="set">
+         <label class="row">휴식 자동 시작<input type="checkbox" id="s-autoBreak"></label>
+        <label class="row">집중 자동 시작<input type="checkbox" id="s-autoFocus"></label>
+        <label class="row">알림음<input type="checkbox" id="s-sound"></label>
+        <div class="foot">
+          <button class="mini ghost" id="test">알림음 듣기</button>
+          <button class="mini ghost" id="clr">오늘 기록 초기화</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+const M={pomo:{l:'뽀모도로'},rev:{l:'역모도로'},rand:{l:'랜모도로'}};
+const PH={focus:'집중',break:'휴식'};
+const store={get(k,d){try{const v=localStorage.getItem('pomo2-'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('pomo2-'+k,JSON.stringify(v))}catch(e){}}};
+const S=Object.assign({mode:'pomo',pf:25,rb:15,autoBreak:true,autoFocus:false,sound:true},store.get('set',{}));
+let tasks=store.get('tasks',[]);
+let active=store.get('active',null);
+const day=new Date().toDateString();
+let stat=store.get('stat',{day,n:0,min:0});if(stat.day!==day)stat={day,n:0,min:0};
+let mode=S.mode,phase='focus',total=0,left=0,running=false,started=false,endAt=0,timer=null,ac=null,rolled=false,session=0;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ring=$('#ring'),C=2*Math.PI*142;ring.style.strokeDasharray=C;
+const fmt=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const rnd=()=>5+Math.floor(Math.random()*26);
+function minutes(){
+  if(mode==='pomo')return phase==='focus'?S.pf:5;
+  if(mode==='rev')return phase==='focus'?5:S.rb;
+  return null;
+}
+function prep(){
+  const m=minutes();started=false;
+  if(m==null){rolled=false;total=1;left=1}else{rolled=true;total=m*60000;left=total}
+}
+function beep(times=3){
+  if(!S.sound)return;
+  try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();ac.resume&&ac.resume();
+    for(let i=0;i<times;i++){const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime+i*.32;
+      o.type='sine';o.frequency.value=i%2?660:880;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.3,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.28);
+      o.connect(g).connect(ac.destination);o.start(t);o.stop(t+.3)}}catch(e){}
+}
+function render(){
+  document.body.dataset.mode=mode;document.body.dataset.phase=phase;
+  $('#time').textContent=rolled?fmt(left):'??:??';
+  const at=tasks.find(t=>t.id===active);
+  $('#sub').textContent=!rolled?(phase==='focus'?'시작하면 집중 시간이 정해져요':'시작하면 휴식 시간이 정해져요')
+    :(phase==='focus'&&at?at.text:(phase==='focus'?'열심히 달리는 중':'해변에서 쉬는 중'));
+  ring.style.strokeDashoffset=rolled?C*(1-left/total):0;
+  $('#go').textContent=running?'일시정지':(started?'계속':'시작');
+  $('#go').classList.toggle('on',running);document.body.classList.toggle('go',running);
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.m===mode));
+  document.title=(started&&rolled?fmt(left)+' · ':'')+M[mode].l+' '+PH[phase]+' 🐰';
+  $('#today').textContent='오늘 집중 '+stat.n+'회 · '+stat.min+'분';
+  const lock=started;
+  let h='';
+  if(mode==='pomo'){h='<b>집중 시간 (휴식 5분 고정)</b>'+[15,20,25,30,35,40,45,50,55].map(v=>`<button class="chip" data-v="${v}" aria-pressed="${v===S.pf}" ${lock&&phase==='focus'?'disabled':''}>${v}분</button>`).join('')}
+  else if(mode==='rev'){h='<b>휴식 시간 (집중 5분 고정)</b>'+[10,15,20,25].map(v=>`<button class="chip" data-v="${v}" aria-pressed="${v===S.rb}" ${lock&&phase==='break'?'disabled':''}>${v}분</button>`).join('')}
+  $('#chips').innerHTML=h;$('#chips').style.display=h?'':'none';
+  $('#info').textContent=mode==='rand'?'집중도 휴식도 5분에서 30분 사이로 무작위로 정해져요 · 이번에 집중 '+session+'회':'지금은 '+PH[phase]+' 차례 · 이번에 집중 '+session+'회';
+}
+function renderTasks(){
+  $('#list').innerHTML=tasks.map(t=>`<li data-id="${esc(t.id)}" class="${t.id===active?'act':''}${t.done?' done':''}">
+    <input type="checkbox" ${t.done?'checked':''} aria-label="완료 표시">
+    <span class="t">${esc(t.text)}</span><span class="n">🥕 ${t.n}/${t.est}</span>
+    <button class="del" aria-label="삭제">×</button></li>`).join('');
+  $('#empty').style.display=tasks.length?'none':'';
+  store.set('tasks',tasks);store.set('active',active);render();
+}
+function setPhase(p,autostart){stop();phase=p;prep();render();if(autostart)start()}
+function setMode(m){stop();mode=m;S.mode=m;store.set('set',S);phase='focus';session=0;prep();render()}
+function tick(){left=endAt-Date.now();if(left<=0){left=0;finish()}else render()}
+function start(){
+  if(running)return;
+  if(!rolled){total=rnd()*60000;left=total;rolled=true}
+  running=true;started=true;endAt=Date.now()+left;timer=setInterval(tick,250);
+  try{ac=ac||new (window.AudioContext||window.webkitAudioContext)()}catch(e){};render();
+}
+function stop(){running=false;clearInterval(timer);render()}
+function finish(){
+  stop();beep(phase==='focus'?4:3);
+  if(phase==='focus'){
+    session++;stat.n++;stat.min+=Math.round(total/60000);store.set('stat',stat);
+    const t=tasks.find(t=>t.id===active);if(t){t.n++;renderTasks()}
+    setPhase('break',S.autoBreak);
+  }else setPhase('focus',S.autoFocus);
+}
+$('#go').onclick=()=>running?stop():start();
+$('#reset').onclick=()=>{stop();prep();render()};
+$('#skip').onclick=()=>setPhase(phase==='focus'?'break':'focus',false);
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{if(b.dataset.m!==mode)setMode(b.dataset.m)});
+$('#chips').onclick=e=>{
+  const b=e.target.closest('.chip');if(!b||b.disabled)return;const v=+b.dataset.v;
+  if(mode==='pomo')S.pf=v;else S.rb=v;store.set('set',S);
+  if(!started)prep();render();
+};
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&!/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName)){e.preventDefault();running?stop():start()}
+});
+$('#add').onsubmit=e=>{
+  e.preventDefault();const text=$('#tt').value.trim();if(!text)return;
+  const id=Date.now().toString(36);
+  tasks.push({id,text,est:Math.max(1,Math.min(20,+$('#te').value||1)),n:0,done:false});
+  if(!active)active=id;$('#tt').value='';$('#te').value=1;renderTasks();
+};
+$('#list').onclick=e=>{
+  const li=e.target.closest('li');if(!li)return;const id=li.dataset.id;const t=tasks.find(x=>x.id===id);
+  if(e.target.classList.contains('del')){tasks=tasks.filter(x=>x.id!==id);if(active===id)active=null}
+  else if(e.target.type==='checkbox'){t.done=e.target.checked;if(t.done&&active===id)active=null}
+  else active=active===id?null:id;
+  renderTasks();
+};
+for(const k of ['autoBreak','autoFocus','sound']){const el=$('#s-'+k);el.checked=S[k];el.onchange=()=>{S[k]=el.checked;store.set('set',S)}}
+$('#test').onclick=()=>{const s=S.sound;S.sound=true;beep(3);S.sound=s};
+$('#clr').onclick=()=>{stat={day,n:0,min:0};session=0;store.set('stat',stat);render()};
+if(!M[mode])mode='pomo';
+prep();renderTasks();
+}
+</script>
+</body>
+</html>
