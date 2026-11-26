@@ -55,6 +55,16 @@ h1{margin:0;font-size:32px;line-height:1.05}
 .chip[aria-pressed=true]{background:#fff;color:var(--deep);border-color:#fff}
 .chip:disabled{opacity:.45;cursor:not-allowed}
 .info{text-align:center;font-size:15px;margin:14px 0 0;opacity:.95}
+.modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.45);z-index:10;padding:16px}
+.modal.show{display:grid}
+.card{background:#fffaf4;color:#3b2c2c;border-radius:28px;padding:24px 22px 22px;width:min(380px,100%);text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.card h3{font:400 26px/1.1 Jua,sans-serif;margin:0 0 14px}
+.wheel{position:relative;width:min(300px,76vw);aspect-ratio:1;margin:0 auto}
+.wheel svg{width:100%;height:100%;display:block}
+#wh{transform-origin:150px 150px;transition:transform 3.4s cubic-bezier(.12,.75,.12,1)}
+.pin{position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-top:28px solid #3b2c2c;filter:drop-shadow(0 2px 0 rgba(0,0,0,.2))}
+.res{font:400 30px Jua,sans-serif;margin:14px 0 0;min-height:1.2em;color:#d1531f}
+@media(prefers-reduced-motion:reduce){#wh{transition-duration:.6s!important}}
 .hint{text-align:center;font-size:13px;opacity:.8;margin:6px 0 0}
 .lower{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;margin-top:30px}
 .panel{background:rgba(0,0,0,.16);border-radius:20px;padding:20px}
@@ -209,6 +219,16 @@ li input[type=checkbox]{width:22px;height:22px;min-height:0;accent-color:var(--a
   </div>
 </div>
 
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
+  <div class="card">
+    <h3 id="mt">집중 시간 룰렛</h3>
+    <div class="wheel"><div class="pin"></div>
+      <svg viewBox="0 0 300 300" aria-hidden="true"><g id="wh"></g><circle cx="150" cy="150" r="22" fill="#fffaf4" stroke="#3b2c2c" stroke-width="4"/><text x="150" y="157" text-anchor="middle" font-size="20">🐰</text></svg>
+    </div>
+    <p class="res" id="res" aria-live="polite"></p>
+  </div>
+</div>
+
 <script>
 {
 const $=s=>document.querySelector(s);
@@ -224,7 +244,25 @@ let mode=S.mode,phase='focus',total=0,left=0,running=false,started=false,endAt=0
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ring=$('#ring'),C=2*Math.PI*142;ring.style.strokeDasharray=C;
 const fmt=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
-const rnd=()=>5+Math.floor(Math.random()*26);
+const SL=[5,10,15,20,25,30],COL=['#ff8a4c','#3fb6c4','#ffd23f','#f48fb1','#7fcf7a','#9b8cf0'];
+let spinning=false,rot=0;
+{const g=$('#wh');let h='';SL.forEach((v,i)=>{const a0=(i*60-30-90)*Math.PI/180,a1=(i*60+30-90)*Math.PI/180,r=140,
+  x0=150+r*Math.cos(a0),y0=150+r*Math.sin(a0),x1=150+r*Math.cos(a1),y1=150+r*Math.sin(a1),am=(i*60-90)*Math.PI/180;
+  h+=`<path d="M150 150L${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}Z" fill="${COL[i]}" stroke="#fffaf4" stroke-width="4"/>`;
+  h+=`<text x="${(150+95*Math.cos(am)).toFixed(1)}" y="${(150+95*Math.sin(am)+9).toFixed(1)}" text-anchor="middle" font-family="Jua,sans-serif" font-size="26" fill="#3b2c2c" transform="rotate(${i*60} ${(150+95*Math.cos(am)).toFixed(1)} ${(150+95*Math.sin(am)).toFixed(1)})">${v}분</text>`});
+ g.innerHTML=`<circle cx="150" cy="150" r="146" fill="#3b2c2c"/>`+h}
+function roulette(done){
+  spinning=true;const i=Math.floor(Math.random()*SL.length);
+  $('#mt').textContent=(phase==='focus'?'집중':'휴식')+' 시간 룰렛';$('#res').textContent='';
+  $('#modal').classList.add('show');$('#go').disabled=true;
+  const wh=$('#wh');const base=rot-((rot%360)+360)%360;
+  rot=base+360*6+((360-i*60)%360)+(Math.random()*36-18);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{wh.style.transform=`rotate(${rot}deg)`}));
+  let fired=false;const end=()=>{if(fired)return;fired=true;
+    $('#res').textContent=SL[i]+'분!';beep(1);
+    setTimeout(()=>{$('#modal').classList.remove('show');$('#go').disabled=false;spinning=false;done(SL[i])},1100)};
+  wh.addEventListener('transitionend',end,{once:true});setTimeout(end,4200);
+}
 function minutes(){
   if(mode==='pomo')return phase==='focus'?S.pf:5;
   if(mode==='rev')return phase==='focus'?5:S.rb;
@@ -245,7 +283,7 @@ function render(){
   document.body.dataset.mode=mode;document.body.dataset.phase=phase;
   $('#time').textContent=rolled?fmt(left):'??:??';
   const at=tasks.find(t=>t.id===active);
-  $('#sub').textContent=!rolled?(phase==='focus'?'시작하면 집중 시간이 정해져요':'시작하면 휴식 시간이 정해져요')
+  $('#sub').textContent=!rolled?(phase==='focus'?'시작을 누르면 룰렛이 돌아가요':'시작을 누르면 휴식 룰렛이 돌아가요')
     :(phase==='focus'&&at?at.text:(phase==='focus'?'열심히 달리는 중':'해변에서 쉬는 중'));
   ring.style.strokeDashoffset=rolled?C*(1-left/total):0;
   $('#go').textContent=running?'일시정지':(started?'계속':'시작');
@@ -258,7 +296,7 @@ function render(){
   if(mode==='pomo'){h='<b>집중 시간 (휴식 5분 고정)</b>'+[15,20,25,30,35,40,45,50,55].map(v=>`<button class="chip" data-v="${v}" aria-pressed="${v===S.pf}" ${lock&&phase==='focus'?'disabled':''}>${v}분</button>`).join('')}
   else if(mode==='rev'){h='<b>휴식 시간 (집중 5분 고정)</b>'+[10,15,20,25].map(v=>`<button class="chip" data-v="${v}" aria-pressed="${v===S.rb}" ${lock&&phase==='break'?'disabled':''}>${v}분</button>`).join('')}
   $('#chips').innerHTML=h;$('#chips').style.display=h?'':'none';
-  $('#info').textContent=mode==='rand'?'집중도 휴식도 5분에서 30분 사이로 무작위로 정해져요 · 이번에 집중 '+session+'회':'지금은 '+PH[phase]+' 차례 · 이번에 집중 '+session+'회';
+  $('#info').textContent=mode==='rand'?'집중도 휴식도 룰렛을 돌려 5~30분(5분 단위)으로 정해요 · 이번에 집중 '+session+'회':'지금은 '+PH[phase]+' 차례 · 이번에 집중 '+session+'회';
 }
 function renderTasks(){
   $('#list').innerHTML=tasks.map(t=>`<li data-id="${esc(t.id)}" class="${t.id===active?'act':''}${t.done?' done':''}">
@@ -268,12 +306,12 @@ function renderTasks(){
   $('#empty').style.display=tasks.length?'none':'';
   store.set('tasks',tasks);store.set('active',active);render();
 }
-function setPhase(p,autostart){stop();phase=p;prep();render();if(autostart)start()}
-function setMode(m){stop();mode=m;S.mode=m;store.set('set',S);phase='focus';session=0;prep();render()}
+function setPhase(p,autostart){if(spinning)return;stop();phase=p;prep();render();if(autostart)start()}
+function setMode(m){if(spinning)return;stop();mode=m;S.mode=m;store.set('set',S);phase='focus';session=0;prep();render()}
 function tick(){left=endAt-Date.now();if(left<=0){left=0;finish()}else render()}
 function start(){
-  if(running)return;
-  if(!rolled){total=rnd()*60000;left=total;rolled=true}
+  if(running||spinning)return;
+  if(!rolled){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)()}catch(e){};roulette(m=>{total=m*60000;left=total;rolled=true;start()});return}
   running=true;started=true;endAt=Date.now()+left;timer=setInterval(tick,250);
   try{ac=ac||new (window.AudioContext||window.webkitAudioContext)()}catch(e){};render();
 }
@@ -287,7 +325,7 @@ function finish(){
   }else setPhase('focus',S.autoFocus);
 }
 $('#go').onclick=()=>running?stop():start();
-$('#reset').onclick=()=>{stop();prep();render()};
+$('#reset').onclick=()=>{if(spinning)return;stop();prep();render()};
 $('#skip').onclick=()=>setPhase(phase==='focus'?'break':'focus',false);
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{if(b.dataset.m!==mode)setMode(b.dataset.m)});
 $('#chips').onclick=e=>{
@@ -296,7 +334,7 @@ $('#chips').onclick=e=>{
   if(!started)prep();render();
 };
 document.addEventListener('keydown',e=>{
-  if(e.code==='Space'&&!/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName)){e.preventDefault();running?stop():start()}
+  if(e.code==='Space'&&!spinning&&!/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName)){e.preventDefault();running?stop():start()}
 });
 $('#add').onsubmit=e=>{
   e.preventDefault();const text=$('#tt').value.trim();if(!text)return;
