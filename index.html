@@ -63,6 +63,13 @@ h1{margin:0;font-size:32px;line-height:1.05}
 .wheel svg{width:100%;height:100%;display:block}
 #wh{transform-origin:150px 150px;transition:transform 3.4s cubic-bezier(.12,.75,.12,1)}
 .pin{position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-top:28px solid #3b2c2c;filter:drop-shadow(0 2px 0 rgba(0,0,0,.2))}
+.card p.db{margin:0 0 18px;font-size:16px}
+.card .em{font-size:56px;line-height:1;margin:4px 0 8px}
+.dbtn{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.dbtn button{font:400 19px Jua,sans-serif;border:0;border-radius:14px;min-height:48px;padding:0 22px;cursor:pointer}
+#dnext{background:#e2672b;color:#fff;box-shadow:0 4px 0 #a9461a}#dclose{background:#efe4d8;color:#3b2c2c}
+.auto{font-size:14px;opacity:.75;margin:12px 0 0;min-height:1.2em}
+.note{font-size:13px;opacity:.85;margin:-4px 0 0}
 .res{font:400 30px Jua,sans-serif;margin:14px 0 0;min-height:1.2em;color:#d1531f}
 @media(prefers-reduced-motion:reduce){#wh{transition-duration:.6s!important}}
 .hint{text-align:center;font-size:13px;opacity:.8;margin:6px 0 0}
@@ -209,6 +216,8 @@ li input[type=checkbox]{width:22px;height:22px;min-height:0;accent-color:var(--a
       <div class="set">
          <label class="row">휴식 자동 시작<input type="checkbox" id="s-autoBreak"></label>
         <label class="row">집중 자동 시작<input type="checkbox" id="s-autoFocus"></label>
+        <label class="row" id="nrow">브라우저 알림<input type="checkbox" id="s-notify"></label>
+        <p class="note" id="nnote"></p>
         <label class="row">알림음<input type="checkbox" id="s-sound"></label>
         <div class="foot">
           <button class="mini ghost" id="test">알림음 듣기</button>
@@ -229,13 +238,23 @@ li input[type=checkbox]{width:22px;height:22px;min-height:0;accent-color:var(--a
   </div>
 </div>
 
+<div class="modal" id="done" role="alertdialog" aria-modal="true" aria-labelledby="dt">
+  <div class="card">
+    <div class="em" id="de">🥕</div>
+    <h3 id="dt">집중 끝!</h3>
+    <p class="db" id="db">수고했어요. 이제 해변으로 쉬러 가요.</p>
+    <div class="dbtn"><button id="dnext">휴식 시작</button><button id="dclose">닫기</button></div>
+    <p class="auto" id="dauto"></p>
+  </div>
+</div>
+
 <script>
 {
 const $=s=>document.querySelector(s);
 const M={pomo:{l:'뽀모도로'},rev:{l:'역모도로'},rand:{l:'랜모도로'}};
 const PH={focus:'집중',break:'휴식'};
 const store={get(k,d){try{const v=localStorage.getItem('pomo2-'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('pomo2-'+k,JSON.stringify(v))}catch(e){}}};
-const S=Object.assign({mode:'pomo',pf:25,rb:15,autoBreak:true,autoFocus:false,sound:true},store.get('set',{}));
+const S=Object.assign({notify:false,mode:'pomo',pf:25,rb:15,autoBreak:true,autoFocus:false,sound:true},store.get('set',{}));
 let tasks=store.get('tasks',[]);
 let active=store.get('active',null);
 const day=new Date().toDateString();
@@ -245,7 +264,7 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const ring=$('#ring'),C=2*Math.PI*142;ring.style.strokeDasharray=C;
 const fmt=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
 const SL=[5,10,15,20,25,30],COL=['#ff8a4c','#3fb6c4','#ffd23f','#f48fb1','#7fcf7a','#9b8cf0'];
-let spinning=false,rot=0;
+let spinning=false,rot=0,endT=null,autoT=null,autoI=null;
 {const g=$('#wh');let h='';SL.forEach((v,i)=>{const a0=(i*60-30-90)*Math.PI/180,a1=(i*60+30-90)*Math.PI/180,r=140,
   x0=150+r*Math.cos(a0),y0=150+r*Math.sin(a0),x1=150+r*Math.cos(a1),y1=150+r*Math.sin(a1),am=(i*60-90)*Math.PI/180;
   h+=`<path d="M150 150L${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}Z" fill="${COL[i]}" stroke="#fffaf4" stroke-width="4"/>`;
@@ -308,22 +327,43 @@ function renderTasks(){
 }
 function setPhase(p,autostart){if(spinning)return;stop();phase=p;prep();render();if(autostart)start()}
 function setMode(m){if(spinning)return;stop();mode=m;S.mode=m;store.set('set',S);phase='focus';session=0;prep();render()}
-function tick(){left=endAt-Date.now();if(left<=0){left=0;finish()}else render()}
+function tick(){if(!running)return;left=endAt-Date.now();if(left<=0){left=0;finish()}else render()}
 function start(){
   if(running||spinning)return;
   if(!rolled){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)()}catch(e){};roulette(m=>{total=m*60000;left=total;rolled=true;start()});return}
-  running=true;started=true;endAt=Date.now()+left;timer=setInterval(tick,250);
+  hideDone();running=true;started=true;endAt=Date.now()+left;timer=setInterval(tick,250);endT=setTimeout(tick,left+30);
   try{ac=ac||new (window.AudioContext||window.webkitAudioContext)()}catch(e){};render();
 }
-function stop(){running=false;clearInterval(timer);render()}
+function stop(){running=false;clearInterval(timer);clearTimeout(endT);render()}
 function finish(){
   stop();beep(phase==='focus'?4:3);
-  if(phase==='focus'){
-    session++;stat.n++;stat.min+=Math.round(total/60000);store.set('stat',stat);
+  const wasFocus=phase==='focus',mins=Math.round(total/60000);
+  if(wasFocus){
+    session++;stat.n++;stat.min+=mins;store.set('stat',stat);
     const t=tasks.find(t=>t.id===active);if(t){t.n++;renderTasks()}
-    setPhase('break',S.autoBreak);
-  }else setPhase('focus',S.autoFocus);
+  }
+  phase=wasFocus?'break':'focus';prep();render();
+  const auto=wasFocus?S.autoBreak:S.autoFocus;
+  const title=wasFocus?'집중 끝! 🥕':'휴식 끝! 🐰';
+  const body=wasFocus?mins+'분 동안 잘 달렸어요. 이제 쉬러 가요.':'충전 완료! 다시 달려 볼까요?';
+  showDone(wasFocus,title,body,auto);notify(title,body);
 }
+function showDone(wasFocus,title,body,auto){
+  $('#de').textContent=wasFocus?'🏖️':'🥕';$('#dt').textContent=title;$('#db').textContent=body;
+  $('#dnext').textContent=(wasFocus?'휴식':'집중')+' 시작';$('#done').classList.add('show');$('#dnext').focus();
+  clearTimeout(autoT);clearInterval(autoI);$('#dauto').textContent='';
+  if(auto){let n=5;const show=()=>$('#dauto').textContent=n+'초 뒤 자동으로 시작해요';show();
+    autoI=setInterval(()=>{n--;if(n>0)show()},1000);autoT=setTimeout(()=>{hideDone();start()},5000)}
+}
+function hideDone(){clearTimeout(autoT);clearInterval(autoI);$('#done').classList.remove('show')}
+function notify(title,body){
+  if(!S.notify||!('Notification' in window)||Notification.permission!=='granted')return;
+  try{const n=new Notification(title,{body,tag:'bunny-pomodoro',renotify:true,requireInteraction:true});
+    n.onclick=()=>{window.focus();n.close()}}catch(e){}
+}
+const doneOpen=()=>$('#done').classList.contains('show');
+$('#dnext').onclick=()=>{hideDone();start()};
+$('#dclose').onclick=hideDone;
 $('#go').onclick=()=>running?stop():start();
 $('#reset').onclick=()=>{if(spinning)return;stop();prep();render()};
 $('#skip').onclick=()=>setPhase(phase==='focus'?'break':'focus',false);
@@ -334,7 +374,8 @@ $('#chips').onclick=e=>{
   if(!started)prep();render();
 };
 document.addEventListener('keydown',e=>{
-  if(e.code==='Space'&&!spinning&&!/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName)){e.preventDefault();running?stop():start()}
+  if(e.code==='Escape'&&doneOpen()){hideDone();return}
+  if(e.code==='Space'&&!spinning&&!doneOpen()&&!/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName)){e.preventDefault();running?stop():start()}
 });
 $('#add').onsubmit=e=>{
   e.preventDefault();const text=$('#tt').value.trim();if(!text)return;
@@ -350,6 +391,20 @@ $('#list').onclick=e=>{
   renderTasks();
 };
 for(const k of ['autoBreak','autoFocus','sound']){const el=$('#s-'+k);el.checked=S[k];el.onchange=()=>{S[k]=el.checked;store.set('set',S)}}
+{const el=$('#s-notify'),note=$('#nnote');
+  if(!('Notification' in window)){$('#nrow').style.display='none'}
+  else{const sync=()=>{const p=Notification.permission;el.checked=S.notify&&p==='granted';
+      note.textContent=p==='denied'?'브라우저에서 알림이 차단돼 있어요. 주소창 왼쪽 자물쇠 아이콘에서 알림을 허용해 주세요.':'';};
+    sync();
+    el.onchange=async()=>{
+      if(el.checked){let p=Notification.permission;
+        if(p==='default'){try{p=await Notification.requestPermission()}catch(e){p='denied'}}
+        S.notify=p==='granted';
+        if(p==='granted')notify('알림이 켜졌어요 🐰','타이머가 끝나면 이렇게 알려 드릴게요.');
+      }else S.notify=false;
+      store.set('set',S);sync();
+    };}
+}
 $('#test').onclick=()=>{const s=S.sound;S.sound=true;beep(3);S.sound=s};
 $('#clr').onclick=()=>{stat={day,n:0,min:0};session=0;store.set('stat',stat);render()};
 if(!M[mode])mode='pomo';
